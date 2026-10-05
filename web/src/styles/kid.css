@@ -58,7 +58,8 @@ body[data-screen="kid"] {
 
 .kid__title {
   margin: 0;
-  font-size: clamp(2rem, 7vw, 4rem);
+  /* the brief's clamp(2rem, 7vw, 4rem), also bounded by height for landscape */
+  font-size: clamp(2rem, min(7vw, 7vh), 4rem);
   font-weight: 700;
   line-height: 1.1;
   text-align: center;
@@ -233,6 +234,16 @@ body[data-screen="kid"] {
 
 .kid__timer.is-up {
   color: var(--dust);
+}
+
+@media (orientation: landscape) {
+  .kid__intro-rocket {
+    font-size: min(20vmin, 160px);
+  }
+
+  .kid__liftoff {
+    font-size: min(24vmin, 180px);
+  }
 }
 
 @media (orientation: landscape) and (min-width: 700px) {
