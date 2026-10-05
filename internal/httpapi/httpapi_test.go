@@ -4,22 +4,38 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"testing/fstest"
+	"time"
 
 	"github.com/nazboyko/one-thing/internal/llm"
 	"github.com/nazboyko/one-thing/internal/mission"
 	"github.com/nazboyko/one-thing/internal/store"
 )
 
-type fakeModel struct{ pingErr error }
+type fakeModel struct {
+	pingErr error
+	genErr  error
+	gotArgs []string
+}
 
 func (f *fakeModel) Name() string                   { return "gemma4:test" }
 func (f *fakeModel) Ping(ctx context.Context) error { return f.pingErr }
+func (f *fakeModel) Generate(ctx context.Context, routine, theme string) (mission.Mission, llm.Meta, error) {
+	f.gotArgs = []string{routine, theme}
+	meta := llm.Meta{Model: "gemma4:test", MS: 3100, Attempts: 1}
+	if f.genErr != nil {
+		return mission.Mission{}, meta, f.genErr
+	}
+	m := mission.Sample()
+	m.ID, m.CreatedAt = "", time.Time{}
+	return m, meta, nil
+}
 
 func newServer(t *testing.T, model *fakeModel) http.Handler {
 	t.Helper()
@@ -207,5 +223,86 @@ func TestMissingWebBuild(t *testing.T) {
 	rec := do(t, s.Handler(), "GET", "/", "")
 	if rec.Code != http.StatusServiceUnavailable || !strings.Contains(rec.Body.String(), "make build") {
 		t.Fatalf("GET / without build = %d %q", rec.Code, rec.Body)
+	}
+}
+
+func TestGenerate(t *testing.T) {
+	model := &fakeModel{}
+	h := newServer(t, model)
+	rec := do(t, h, "POST", "/api/generate", `{"routine":"  School morning: breakfast, teeth  ","theme":"  rocket   launch "}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d %s", rec.Code, rec.Body)
+	}
+	got := decodeInto[struct {
+		Mission mission.Mission `json:"mission"`
+		Meta    llm.Meta        `json:"meta"`
+	}](t, rec)
+	if len(got.Mission.Steps) != 6 || got.Meta.Attempts != 1 || got.Meta.MS != 3100 || got.Meta.Model != "gemma4:test" {
+		t.Fatalf("body = %+v", got)
+	}
+	if model.gotArgs[0] != "School morning: breakfast, teeth" || model.gotArgs[1] != "rocket launch" {
+		t.Fatalf("model got %q", model.gotArgs)
+	}
+	if list := decodeInto[[]mission.Mission](t, do(t, h, "GET", "/api/missions", "")); len(list) != 0 {
+		t.Fatal("a generated mission must not be saved before the parent approves it")
+	}
+}
+
+func TestGenerateDefaultTheme(t *testing.T) {
+	model := &fakeModel{}
+	if rec := do(t, newServer(t, model), "POST", "/api/generate", `{"routine":"bedtime"}`); rec.Code != http.StatusOK {
+		t.Fatalf("status %d", rec.Code)
+	}
+	if model.gotArgs[1] != "rocket launch" {
+		t.Fatalf("theme = %q", model.gotArgs[1])
+	}
+}
+
+func TestGenerateRejectsBadInput(t *testing.T) {
+	tests := []struct {
+		name, body, field string
+	}{
+		{"empty routine", `{"routine":""}`, "routine: too short (at least 3 characters)"},
+		{"blank routine", `{"routine":"    "}`, "routine: too short (at least 3 characters)"},
+		{"oversized routine", `{"routine":"` + strings.Repeat("a", 501) + `"}`, "routine: too long (at most 500 characters)"},
+		{"long theme", `{"routine":"bedtime","theme":"` + strings.Repeat("t", 61) + `"}`, "theme: too long (at most 60 characters)"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			model := &fakeModel{}
+			rec := do(t, newServer(t, model), "POST", "/api/generate", tt.body)
+			e := decodeInto[apiError](t, rec)
+			if rec.Code != http.StatusUnprocessableEntity || len(e.Fields) != 1 || e.Fields[0] != tt.field {
+				t.Fatalf("status %d, error %+v", rec.Code, e)
+			}
+			if model.gotArgs != nil {
+				t.Fatal("the model was called for bad input")
+			}
+		})
+	}
+}
+
+func TestGenerateErrors(t *testing.T) {
+	tests := []struct {
+		name   string
+		err    error
+		status int
+		text   string
+		fields int
+	}{
+		{"invalid twice", &llm.InvalidError{Fields: []string{"steps: too few (at least 3)"}}, http.StatusUnprocessableEntity, "second try", 1},
+		{"ollama down", fmt.Errorf("%w: connection refused", llm.ErrUnreachable), http.StatusBadGateway, "ollama serve", 0},
+		{"model not pulled", llm.ErrModelMissing, http.StatusBadGateway, "ollama pull gemma4:test", 0},
+		{"too slow", context.DeadlineExceeded, http.StatusGatewayTimeout, "too long", 0},
+		{"other", errors.New("boom"), http.StatusBadGateway, "Try again", 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := do(t, newServer(t, &fakeModel{genErr: tt.err}), "POST", "/api/generate", `{"routine":"bedtime"}`)
+			e := decodeInto[apiError](t, rec)
+			if rec.Code != tt.status || !strings.Contains(e.Error, tt.text) || len(e.Fields) != tt.fields {
+				t.Fatalf("status %d, error %+v", rec.Code, e)
+			}
+		})
 	}
 }

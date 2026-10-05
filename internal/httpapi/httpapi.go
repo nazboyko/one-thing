@@ -5,22 +5,32 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/nazboyko/one-thing/internal/llm"
 	"github.com/nazboyko/one-thing/internal/mission"
 	"github.com/nazboyko/one-thing/internal/store"
 )
 
-const maxBody = 64 << 10
+const (
+	maxBody      = 64 << 10
+	minRoutine   = 3
+	maxRoutine   = 500
+	maxTheme     = 60
+	defaultTheme = "rocket launch"
+)
 
 // Model is the local model as the HTTP layer sees it.
 type Model interface {
 	Name() string
 	Ping(ctx context.Context) error
+	Generate(ctx context.Context, routine, theme string) (mission.Mission, llm.Meta, error)
 }
 
 // Server wires the store, the model and the web build to HTTP.
@@ -41,6 +51,7 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/health", s.health)
 	mux.HandleFunc("GET /api/sample", s.sample)
+	mux.HandleFunc("POST /api/generate", s.generate)
 	mux.HandleFunc("GET /api/missions", s.listMissions)
 	mux.HandleFunc("POST /api/missions", s.createMission)
 	mux.HandleFunc("GET /api/missions/{id}", s.getMission)
@@ -76,6 +87,64 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) sample(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, mission.Sample())
+}
+
+type generateRequest struct {
+	Routine string `json:"routine"`
+	Theme   string `json:"theme"`
+}
+
+// generate asks the model for a mission. The result is a draft: it reaches
+// the child only after the parent approves and saves it.
+func (s *Server) generate(w http.ResponseWriter, r *http.Request) {
+	var req generateRequest
+	if !decode(w, r, &req) {
+		return
+	}
+	routine := strings.TrimSpace(req.Routine)
+	theme := strings.Join(strings.Fields(req.Theme), " ")
+	if theme == "" {
+		theme = defaultTheme
+	}
+	var fields []string
+	switch n := utf8.RuneCountInString(routine); {
+	case n < minRoutine:
+		fields = append(fields, fmt.Sprintf("routine: too short (at least %d characters)", minRoutine))
+	case n > maxRoutine:
+		fields = append(fields, fmt.Sprintf("routine: too long (at most %d characters)", maxRoutine))
+	}
+	if utf8.RuneCountInString(theme) > maxTheme {
+		fields = append(fields, fmt.Sprintf("theme: too long (at most %d characters)", maxTheme))
+	}
+	if len(fields) > 0 {
+		writeError(w, http.StatusUnprocessableEntity, "Check the routine and the theme.", fields)
+		return
+	}
+
+	m, meta, err := s.Model.Generate(r.Context(), routine, theme)
+	var invalid *llm.InvalidError
+	switch {
+	case err == nil:
+		log.Printf("generate: %d ms, %d attempt(s)", meta.MS, meta.Attempts)
+		writeJSON(w, http.StatusOK, map[string]any{"mission": m, "meta": meta})
+	case errors.As(err, &invalid):
+		log.Printf("generate: invalid after %d attempts, %d ms", meta.Attempts, meta.MS)
+		writeError(w, http.StatusUnprocessableEntity,
+			"The model's mission did not pass the checks, even after a second try. Write the mission again, or change the routine a little.",
+			invalid.Fields)
+	case errors.Is(err, llm.ErrModelMissing):
+		writeError(w, http.StatusBadGateway,
+			fmt.Sprintf("The model %s is not downloaded. Run: ollama pull %s", s.Model.Name(), s.Model.Name()), nil)
+	case errors.Is(err, llm.ErrUnreachable):
+		writeError(w, http.StatusBadGateway, "The model is not running. Start it with: ollama serve", nil)
+	case errors.Is(err, context.DeadlineExceeded):
+		writeError(w, http.StatusGatewayTimeout, "The model took too long to answer. Try again.", nil)
+	case errors.Is(err, context.Canceled):
+		// the parent left the page; nobody is waiting for an answer
+	default:
+		log.Printf("generate: %v", err)
+		writeError(w, http.StatusBadGateway, "The model answered with an error. Try again.", nil)
+	}
 }
 
 func (s *Server) listMissions(w http.ResponseWriter, r *http.Request) {
