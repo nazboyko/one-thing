@@ -21,6 +21,17 @@ export interface Mission {
   leave_at?: string;
 }
 
+export interface Meta {
+  model: string;
+  ms: number;
+  attempts: number;
+}
+
+export interface Generated {
+  mission: Mission;
+  meta: Meta;
+}
+
 export interface Health {
   ok: boolean;
   model: string;
@@ -61,6 +72,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 export const api = {
   health: () => request<Health>("GET", "/api/health"),
   sample: () => request<Mission>("GET", "/api/sample"),
+  generate: (routine: string, theme: string) => request<Generated>("POST", "/api/generate", { routine, theme }),
   list: () => request<Mission[]>("GET", "/api/missions"),
   get: (id: string) => request<Mission>("GET", `/api/missions/${encodeURIComponent(id)}`),
   create: (m: Mission) => request<Mission>("POST", "/api/missions", m),
