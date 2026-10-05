@@ -38,7 +38,10 @@ func TestValidate(t *testing.T) {
 		{"for_duration too short", func(m *Mission) { m.Steps[1].Seconds = 9 }, []string{"steps[1].seconds: must be 10 to 300 for a timed step"}},
 		{"for_duration accepts 10", func(m *Mission) { m.Steps[1].Seconds = 10 }, nil},
 		{"empty emoji", func(m *Mission) { m.Steps[3].Emoji = "" }, []string{"steps[3].emoji: required"}},
-		{"letters as emoji", func(m *Mission) { m.Steps[3].Emoji = "ok" }, []string{"steps[3].emoji: must be an emoji, not letters or digits"}},
+		{"letters as emoji", func(m *Mission) { m.Steps[3].Emoji = "ok" }, []string{"steps[3].emoji: must be an emoji, not letters or signs"}},
+		{"colon as emoji", func(m *Mission) { m.Steps[3].Emoji = ":" }, []string{"steps[3].emoji: must be an emoji, not letters or signs"}},
+		{"emoji with a space", func(m *Mission) { m.Steps[3].Emoji = "🚀 🚀" }, []string{"steps[3].emoji: must be an emoji, not letters or signs"}},
+		{"emoji with variation selector", func(m *Mission) { m.Steps[3].Emoji = "🛏️" }, nil},
 		{"too long emoji", func(m *Mission) { m.Steps[3].Emoji = strings.Repeat("🚀", 9) }, []string{"steps[3].emoji: too long (one emoji)"}},
 		{"joined emoji is fine", func(m *Mission) { m.Steps[3].Emoji = "🧑‍🚀" }, nil},
 		{"good leave_at", func(m *Mission) { m.LeaveAt = "08:10" }, nil},
@@ -89,6 +92,11 @@ func TestSanitize(t *testing.T) {
 			want: Step{Emoji: FallbackEmoji, Title: "Go", Say: "Go.", Mode: UntilDone, Seconds: 60},
 		},
 		{
+			name: "replaces a colon emoji",
+			in:   Step{Emoji: ":", Title: "Go", Say: "Go.", Mode: ForDuration, Seconds: 45},
+			want: Step{Emoji: FallbackEmoji, Title: "Go", Say: "Go.", Mode: ForDuration, Seconds: 45},
+		},
+		{
 			name: "replaces an empty emoji",
 			in:   Step{Emoji: "", Title: "Go", Say: "Go.", Mode: UntilDone, Seconds: 60},
 			want: Step{Emoji: FallbackEmoji, Title: "Go", Say: "Go.", Mode: UntilDone, Seconds: 60},
@@ -110,6 +118,31 @@ func TestSanitize(t *testing.T) {
 				t.Errorf("title = %q", got.Title)
 			}
 		})
+	}
+}
+
+func TestSentenceCase(t *testing.T) {
+	tests := []struct{ in, want string }{
+		{"Polish The Top Deck", "Polish the top deck"},
+		{"fuel up", "Fuel up"},
+		{"Suit Up, Captain", "Suit up, Captain"},
+		{"Load The NASA Cargo", "Load the NASA cargo"},
+		{"Pre-Flight Clean Up", "Pre-flight clean up"},
+		{"Écoute Bien", "Écoute bien"},
+		{"Go", "Go"},
+		{"", ""},
+	}
+	for _, tt := range tests {
+		if got := sentenceCase(tt.in); got != tt.want {
+			t.Errorf("sentenceCase(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
+func TestSanitizeKeepsMissionTitleCase(t *testing.T) {
+	m := Sanitize(Mission{Title: "Rocket Launch: School Morning", Steps: []Step{{Title: "Fuel Up"}}})
+	if m.Title != "Rocket Launch: School Morning" || m.Steps[0].Title != "Fuel up" {
+		t.Fatalf("got %q / %q", m.Title, m.Steps[0].Title)
 	}
 }
 

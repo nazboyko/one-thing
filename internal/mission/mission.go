@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -59,8 +60,8 @@ type Mission struct {
 }
 
 var (
-	leaveAtPattern  = regexp.MustCompile(`^([01][0-9]|2[0-3]):[0-5][0-9]$`)
-	asciiAlnumRegex = regexp.MustCompile(`[A-Za-z0-9]`)
+	leaveAtPattern = regexp.MustCompile(`^([01][0-9]|2[0-3]):[0-5][0-9]$`)
+	asciiRegex     = regexp.MustCompile(`[\x00-\x7F]`)
 )
 
 // Validate returns one message per broken rule, such as
@@ -127,15 +128,17 @@ func emojiProblem(e string) string {
 		return "required"
 	case len(e) > MaxEmojiBytes:
 		return "too long (one emoji)"
-	case asciiAlnumRegex.MatchString(e):
-		return "must be an emoji, not letters or digits"
+	case asciiRegex.MatchString(e):
+		// letters, digits, and also punctuation such as ":" (seen from the model)
+		return "must be an emoji, not letters or signs"
 	}
 	return ""
 }
 
 // Sanitize tidies model output before it is validated: it trims and
-// collapses whitespace, clamps seconds into the range of the step's mode and
-// replaces an unusable emoji with a star. Parent edits are never sanitized.
+// collapses whitespace, writes step titles in sentence case, clamps seconds
+// into the range of the step's mode and replaces an unusable emoji with a
+// star. Parent edits are never sanitized.
 func Sanitize(m Mission) Mission {
 	out := m
 	out.Title = tidy(m.Title)
@@ -144,7 +147,7 @@ func Sanitize(m Mission) Mission {
 	out.LeaveAt = strings.TrimSpace(m.LeaveAt)
 	out.Steps = make([]Step, len(m.Steps))
 	for i, s := range m.Steps {
-		s.Title = tidy(s.Title)
+		s.Title = sentenceCase(tidy(s.Title))
 		s.Say = tidy(s.Say)
 		s.Mode = strings.TrimSpace(s.Mode)
 		s.Emoji = strings.TrimSpace(s.Emoji)
@@ -163,6 +166,41 @@ func Sanitize(m Mission) Mission {
 }
 
 func tidy(s string) string { return strings.Join(strings.Fields(s), " ") }
+
+// sentenceCase turns "Polish The Top Deck" into "Polish the top deck". Only
+// words written as Title Case are lowered, so "Captain", "I" and all-caps
+// words stay as they are.
+func sentenceCase(s string) string {
+	words := strings.Split(s, " ")
+	for i, w := range words {
+		if keepCapital[strings.Trim(w, ",.!?")] {
+			continue
+		}
+		parts := strings.Split(w, "-")
+		for j, p := range parts {
+			parts[j] = recase(p, i == 0 && j == 0)
+		}
+		words[i] = strings.Join(parts, "-")
+	}
+	return strings.Join(words, " ")
+}
+
+func recase(word string, first bool) string {
+	r, size := utf8.DecodeRuneInString(word)
+	if size == 0 {
+		return word
+	}
+	rest := word[size:]
+	switch {
+	case first:
+		return string(unicode.ToUpper(r)) + rest
+	case unicode.IsUpper(r) && rest != "" && rest == strings.ToLower(rest):
+		return string(unicode.ToLower(r)) + rest
+	}
+	return word
+}
+
+var keepCapital = map[string]bool{"Captain": true, "I": true, "I'm": true, "I'll": true}
 
 func clamp(v, lo, hi int) int { return min(max(v, lo), hi) }
 
