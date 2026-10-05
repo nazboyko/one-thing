@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { LaunchButton } from "../components/LaunchButton";
 import { api, ApiError, type Mission, type Step } from "../lib/api";
 import { chime, unlockAudio } from "../lib/chime";
+import { DEMO, demoSample } from "../lib/demo";
 import { speak, stopSpeaking } from "../lib/speech";
 import { formatClock, minutesUntil, playTimeLine, remainingMs } from "../lib/timer";
 import "../styles/kid.css";
@@ -33,7 +34,7 @@ export function Play({ id, speed }: Props) {
   useEffect(() => {
     let live = true;
     setView({ kind: "loading" });
-    const load = id === "sample" ? api.sample() : api.get(id);
+    const load = DEMO ? Promise.resolve(demoSample) : id === "sample" ? api.sample() : api.get(id);
     load.then(
       (m) => {
         if (!live) return;
@@ -111,6 +112,7 @@ function Intro({ mission, onStart }: { mission: Mission; onStart: () => void }) 
       <button type="button" className="kid__start" onClick={onStart}>
         Start
       </button>
+      {DEMO && <p className="kid__demo">A demo of the kid screen with the built-in sample. Writing new missions needs Gemma on your own computer.</p>}
     </main>
   );
 }
@@ -263,6 +265,11 @@ function EscapeHatch() {
         cancel();
         timer.current = window.setTimeout(() => {
           stopSpeaking();
+          if (DEMO) {
+            // no parent screen in the demo: start the sample again
+            location.reload();
+            return;
+          }
           location.hash = "#/";
         }, HATCH_MS);
       }}

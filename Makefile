@@ -1,7 +1,7 @@
 GO_PKGS := ./cmd/... ./internal/... ./web
 WEB_DEPS := web/node_modules/.package-lock.json
 
-.PHONY: dev build run test check web
+.PHONY: dev build run test check web demo
 
 $(WEB_DEPS): web/package.json web/package-lock.json
 	cd web && npm ci
@@ -33,3 +33,8 @@ check: $(WEB_DEPS)
 	cd web && npm run typecheck
 	cd web && npm test
 	$(MAKE) web
+
+# Static demo of the kid screen for GitHub Pages: the built-in sample only,
+# no server and no model behind it.
+demo: $(WEB_DEPS)
+	cd web && VITE_DEMO=1 npx vite build --outDir ../docs/demo --emptyOutDir

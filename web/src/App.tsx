@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Parent } from "./pages/Parent";
 import { Play } from "./pages/Play";
+import { DEMO } from "./lib/demo";
 import { parseRoute, type Route } from "./lib/route";
 
 function useRoute(): Route {
@@ -15,6 +16,7 @@ function useRoute(): Route {
 
 export function App() {
   const route = useRoute();
+  if (DEMO) return <Play id="sample" speed={route.page === "play" ? route.speed : 1} />;
   if (route.page === "play") return <Play key={route.id} id={route.id} speed={route.speed} />;
   return <Parent />;
 }
