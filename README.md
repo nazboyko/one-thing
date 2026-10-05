@@ -46,10 +46,11 @@ ollama pull gemma4:e4b
 make run
 ```
 
-Open <http://localhost:8787/> on the laptop. The terminal also prints the
-address for a tablet on the same Wi-Fi, and every saved mission has its own
-tablet link with a **Copy link** button. If the model is not running yet,
-the parent screen says what to start and offers the built-in sample.
+Open <http://localhost:8787/> on the laptop. Every saved mission shows two
+links, each with a **Copy link** button: one for this laptop, which works
+with Wi-Fi off, and one for a tablet on the same Wi-Fi. If the model is not
+running yet, the parent screen says what to start and offers the built-in
+sample.
 
 ## The kid screen
 

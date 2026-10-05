@@ -3,6 +3,7 @@ import { Field, MissionEditor } from "../components/MissionEditor";
 import { VoicePicker } from "../components/VoicePicker";
 import { api, ApiError, type Health, type Meta, type Mission } from "../lib/api";
 import { parseFieldErrors, toDraft } from "../lib/editor";
+import { playLinks } from "../lib/links";
 import { playHash } from "../lib/route";
 import "../styles/parent.css";
 
@@ -51,6 +52,16 @@ export function Parent() {
     refreshHealth();
     refreshList();
   }, [refreshHealth, refreshList]);
+
+  // Wi-Fi going on or off changes the tablet link. The laptop link stays.
+  useEffect(() => {
+    window.addEventListener("online", refreshHealth);
+    window.addEventListener("offline", refreshHealth);
+    return () => {
+      window.removeEventListener("online", refreshHealth);
+      window.removeEventListener("offline", refreshHealth);
+    };
+  }, [refreshHealth]);
 
   // While the model is down, check again now and then, so the banner goes
   // away by itself once Ollama runs.
@@ -345,7 +356,6 @@ function SavedList({ missions, health, onEdit, onDelete, onSample }: SavedListPr
       </div>
     );
   }
-  const base = health?.lan_urls[0] ?? `${location.origin}/`;
   return (
     <ul className="saved">
       {missions.map((m) => (
@@ -367,14 +377,44 @@ function SavedList({ missions, health, onEdit, onDelete, onSample }: SavedListPr
               Delete
             </button>
           </div>
-          <TabletLink url={`${base}${playHash(m.id!)}`} />
+          <HandOverLinks mission={m} health={health} />
         </li>
       ))}
     </ul>
   );
 }
 
-function TabletLink({ url }: { url: string }) {
+// Two ways to open a saved mission. The laptop link works with Wi-Fi off;
+// the tablet link needs the laptop's address in the home network.
+function HandOverLinks({ mission, health }: { mission: Mission; health: Health | null }) {
+  const links = playLinks(mission.id!, health?.lan_urls ?? [], location);
+  return (
+    <div className="saved__links">
+      <PlayLink id={`laptop-${mission.id}`} label="On this laptop" url={links.laptop} title={mission.title} />
+      {links.tablet ? (
+        <PlayLink id={`tablet-${mission.id}`} label="On a tablet" url={links.tablet} title={mission.title} />
+      ) : (
+        <div className="saved__link">
+          <span className="saved__link-label">On a tablet</span>
+          <p className="saved__link-note">
+            {health
+              ? "This laptop has no home network address right now. Connect it to Wi-Fi, then reload."
+              : "Checking the network…"}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface PlayLinkProps {
+  id: string;
+  label: string;
+  url: string;
+  title: string;
+}
+
+function PlayLink({ id, label, url, title }: PlayLinkProps) {
   const [copied, setCopied] = useState(false);
   const field = useRef<HTMLInputElement>(null);
   const copy = async () => {
@@ -392,14 +432,15 @@ function TabletLink({ url }: { url: string }) {
     setCopied(true);
     window.setTimeout(() => setCopied(false), 2000);
   };
+  const action = copied ? "Copied" : "Copy link";
   return (
     <div className="saved__link">
-      <label className="saved__link-label" htmlFor={`link-${url}`}>
-        On the tablet
+      <label className="saved__link-label" htmlFor={id}>
+        {label}
       </label>
-      <input id={`link-${url}`} ref={field} className="input input--link" readOnly value={url} onFocus={(e) => e.target.select()} />
-      <button type="button" className="button button--quiet" onClick={copy}>
-        {copied ? "Copied" : "Copy link"}
+      <input id={id} ref={field} className="input input--link" readOnly value={url} onFocus={(e) => e.target.select()} />
+      <button type="button" className="button button--quiet" onClick={copy} aria-label={`${action}, ${label.toLowerCase()}, ${title}`}>
+        {action}
       </button>
     </div>
   );
