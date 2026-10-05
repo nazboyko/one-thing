@@ -78,6 +78,11 @@ body[data-screen="kid"] {
   overflow-wrap: anywhere;
 }
 
+.kid__line--play {
+  color: var(--aurora);
+  font-weight: 600;
+}
+
 /* flight path: done, current, to go */
 
 .flight {

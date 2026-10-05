@@ -143,6 +143,19 @@ export function MissionEditor({ mission, keys, errors, onChange }: Props) {
           onChange={(e) => edit(updateText(mission, "finale", e.target.value), "finale")}
         />
       </Field>
+      <Field id="m-leave" label="Time to leave (optional)" error={errors["leave_at"]} className="field--short">
+        <input
+          id="m-leave"
+          className="input"
+          type="time"
+          value={mission.leave_at ?? ""}
+          aria-describedby="m-leave-hint"
+          onChange={(e) => edit({ ...mission, leave_at: e.target.value }, "leave_at")}
+        />
+        <p className="field-hint" id="m-leave-hint">
+          The last screen then says how many minutes are left to play.
+        </p>
+      </Field>
     </div>
   );
 }

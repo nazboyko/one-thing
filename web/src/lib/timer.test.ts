@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatClock, remainingMs, scaled } from "./timer";
+import { formatClock, minutesUntil, playTimeLine, remainingMs, scaled } from "./timer";
 
 describe("remainingMs", () => {
   it("counts down from the step length", () => {
@@ -51,5 +51,34 @@ describe("scaled", () => {
     expect(scaled(800, 1)).toBe(800);
     expect(scaled(800, 4)).toBe(200);
     expect(scaled(800, 0)).toBe(800);
+  });
+});
+
+describe("minutesUntil", () => {
+  const at = (h: number, m: number, s = 0) => new Date(2026, 9, 5, h, m, s);
+
+  it("counts whole minutes to the leave time today", () => {
+    expect(minutesUntil("08:10", at(7, 52))).toBe(18);
+    expect(minutesUntil("08:10", at(7, 52, 30))).toBe(17);
+  });
+
+  it("is null when the time has passed or is now", () => {
+    expect(minutesUntil("08:10", at(8, 10))).toBeNull();
+    expect(minutesUntil("08:10", at(9, 0))).toBeNull();
+    expect(minutesUntil("08:10", at(8, 9, 30))).toBeNull();
+  });
+
+  it("is null without a valid time", () => {
+    expect(minutesUntil(undefined, at(7, 0))).toBeNull();
+    expect(minutesUntil("", at(7, 0))).toBeNull();
+    expect(minutesUntil("8:10", at(7, 0))).toBeNull();
+    expect(minutesUntil("24:00", at(7, 0))).toBeNull();
+  });
+});
+
+describe("playTimeLine", () => {
+  it("says minute or minutes", () => {
+    expect(playTimeLine(1)).toBe("You have 1 minute to play before liftoff.");
+    expect(playTimeLine(12)).toBe("You have 12 minutes to play before liftoff.");
   });
 });

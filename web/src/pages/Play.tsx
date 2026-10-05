@@ -3,7 +3,7 @@ import { LaunchButton } from "../components/LaunchButton";
 import { api, ApiError, type Mission, type Step } from "../lib/api";
 import { chime, unlockAudio } from "../lib/chime";
 import { speak, stopSpeaking } from "../lib/speech";
-import { formatClock, remainingMs } from "../lib/timer";
+import { formatClock, minutesUntil, playTimeLine, remainingMs } from "../lib/timer";
 import "../styles/kid.css";
 
 const CHECK_MS = 600;
@@ -66,8 +66,13 @@ export function Play({ id, speed }: Props) {
     [mission],
   );
 
+  // Computed once, when the finale appears.
+  const [playMinutes, setPlayMinutes] = useState<number | null>(null);
   useEffect(() => {
-    if (view.kind === "finale" && mission) speak(mission.finale);
+    if (view.kind !== "finale" || !mission) return;
+    const minutes = minutesUntil(mission.leave_at, new Date());
+    setPlayMinutes(minutes);
+    speak(minutes === null ? mission.finale : `${mission.finale} ${playTimeLine(minutes)}`);
   }, [view.kind, mission]);
 
   return (
@@ -87,7 +92,7 @@ export function Play({ id, speed }: Props) {
           onDone={advance}
         />
       )}
-      {mission && view.kind === "finale" && <Finale mission={mission} />}
+      {mission && view.kind === "finale" && <Finale mission={mission} playMinutes={playMinutes} />}
     </div>
   );
 }
@@ -199,7 +204,7 @@ function StepView({ step, index, total, speed, queueSpeech, onDone }: StepProps)
   );
 }
 
-function Finale({ mission }: { mission: Mission }) {
+function Finale({ mission, playMinutes }: { mission: Mission; playMinutes: number | null }) {
   return (
     <main className="kid__finale">
       <FlightPath total={mission.steps.length} current={-1} done={mission.steps.length} />
@@ -209,6 +214,7 @@ function Finale({ mission }: { mission: Mission }) {
         </span>
         <h1 className="kid__title">Mission complete</h1>
         <p className="kid__line">{mission.finale}</p>
+        {playMinutes !== null && <p className="kid__line kid__line--play">{playTimeLine(playMinutes)}</p>}
       </div>
     </main>
   );

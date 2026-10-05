@@ -19,3 +19,20 @@ export function formatClock(ms: number): string {
 export function scaled(ms: number, speed = 1): number {
   return ms / Math.max(speed, 1);
 }
+
+/**
+ * Whole minutes from `now` until "HH:MM" today, or null when the time is
+ * empty, malformed or already past. Used for "You have N minutes to play".
+ */
+export function minutesUntil(leaveAt: string | undefined, now: Date): number | null {
+  const m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(leaveAt ?? "");
+  if (!m) return null;
+  const target = new Date(now);
+  target.setHours(Number(m[1]), Number(m[2]), 0, 0);
+  const minutes = Math.floor((target.getTime() - now.getTime()) / 60_000);
+  return minutes > 0 ? minutes : null;
+}
+
+export function playTimeLine(minutes: number): string {
+  return `You have ${minutes} ${minutes === 1 ? "minute" : "minutes"} to play before liftoff.`;
+}
