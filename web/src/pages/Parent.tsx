@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Field, MissionEditor } from "../components/MissionEditor";
+import { VoicePicker } from "../components/VoicePicker";
 import { api, ApiError, type Health, type Meta, type Mission } from "../lib/api";
 import { parseFieldErrors, toDraft } from "../lib/editor";
 import { playHash } from "../lib/route";
@@ -259,6 +260,7 @@ export function Parent() {
             </p>
           )}
           <SavedList missions={saved} health={health} onEdit={edit} onDelete={remove} onSample={useSample} />
+          <VoicePicker />
         </section>
       </main>
 

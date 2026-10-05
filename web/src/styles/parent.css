@@ -510,3 +510,32 @@
     grid-column: 1 / -1;
   }
 }
+
+/* the voice on this device */
+
+.voice {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.voice__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.voice__field {
+  flex: 1 1 240px;
+  margin-bottom: 0;
+}
+
+.voice__none {
+  flex: 1 1 240px;
+  margin: 0;
+}
+
+.voice .field-hint {
+  max-width: 64ch;
+}
