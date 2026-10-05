@@ -71,7 +71,7 @@ export function Play({ id, speed }: Props) {
   }, [view.kind, mission]);
 
   return (
-    <div className="kid">
+    <div className="kid" onContextMenu={(e) => e.preventDefault()}>
       <EscapeHatch />
       {view.kind === "loading" && <div className="kid__center" aria-busy="true" />}
       {view.kind === "missing" && <Missing offline={view.offline} />}
