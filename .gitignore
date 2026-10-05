@@ -1,0 +1,14 @@
+# build output
+/bin/
+web/dist/*
+!web/dist/.gitkeep
+web/node_modules/
+
+# local data: saved missions never leave the machine
+/data/
+
+# env and editor noise
+.env
+.env.*
+.DS_Store
+*.log
