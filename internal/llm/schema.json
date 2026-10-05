@@ -1,0 +1,25 @@
+{
+  "type": "object",
+  "required": ["title", "intro", "steps", "finale"],
+  "properties": {
+    "title": { "type": "string" },
+    "intro": { "type": "string" },
+    "steps": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "required": ["emoji", "title", "say", "mode", "seconds"],
+        "properties": {
+          "emoji": { "type": "string" },
+          "title": { "type": "string" },
+          "say": { "type": "string" },
+          "mode": { "type": "string", "enum": ["until_done", "for_duration"] },
+          "seconds": { "type": "integer" }
+        }
+      }
+    },
+    "finale": { "type": "string" }
+  }
+}
