@@ -1,0 +1,13 @@
+{
+  "title": "Rocket Launch: School Morning",
+  "intro": "Captain, your rocket leaves soon. Let's get ready!",
+  "steps": [
+    { "emoji": "🥞", "title": "Fuel up", "say": "Eat your pancake, Captain.", "mode": "until_done", "seconds": 600 },
+    { "emoji": "🪥", "title": "Polish the top deck", "say": "Brush your top teeth until the timer ends.", "mode": "for_duration", "seconds": 60 },
+    { "emoji": "🪥", "title": "Polish the lower deck", "say": "Now brush your bottom teeth.", "mode": "for_duration", "seconds": 60 },
+    { "emoji": "👕", "title": "Suit up", "say": "Put on your space suit.", "mode": "until_done", "seconds": 300 },
+    { "emoji": "👟", "title": "Boots and jacket", "say": "Boots on. Jacket on.", "mode": "until_done", "seconds": 180 },
+    { "emoji": "🎒", "title": "Load the cargo", "say": "Grab your backpack.", "mode": "until_done", "seconds": 60 }
+  ],
+  "finale": "Liftoff! Mission complete."
+}
