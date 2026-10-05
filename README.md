@@ -121,11 +121,15 @@ OLLAMA_MODEL=gemma4:e2b make run
 - The model sometimes merges or drops an action: in about one morning run
   in three, "shoes and jacket" became just "shoes". The parent review is
   there for this.
-- Speech uses the device's own voices, so it sounds different everywhere.
+- Speech uses only voices installed on the device, never a network voice, so
+  it sounds different everywhere. A device with no English voice stays silent.
 - A refresh starts the mission again from the beginning.
 - Most browsers do not keep the screen awake on a plain-HTTP home address.
   On an iPad, set Auto-Lock to Never or use Guided Access; on Android, use
   screen pinning.
+- For a natural voice on a Mac or iPad, download a Premium or Enhanced English
+  voice in Settings > Accessibility > Spoken Content. One Thing picks it by
+  itself, and the parent screen has a Voice menu with a Test voice button.
 
 ## Working on it
 
