@@ -1,0 +1,55 @@
+:root {
+  /* night sky: the kid screen */
+  --space: #0e1a3a; /* background */
+  --hull: #1b2a5c; /* raised surfaces, the button well */
+  --starlight: #f4f6ff; /* primary text */
+  --dust: #9aa7d1; /* secondary text, upcoming dots */
+  --booster: #ffb23e; /* the one accent: hold ring, primary buttons */
+  --aurora: #6fe0c5; /* done: finished dots, the check mark */
+
+  /* flight plan: the parent screen */
+  --paper: #eef1fa; /* background */
+  --card: #ffffff;
+  --ink: #0e1a3a; /* text; same navy as --space */
+  --line: #c9d1ea; /* borders, dividers */
+  --error: #b3261e; /* parent screen only */
+
+  --font: "Lexend Variable", ui-rounded, system-ui, sans-serif;
+  --radius-s: 10px;
+  --radius-l: 24px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font);
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--paper);
+  -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 3px solid var(--booster);
+  outline-offset: 3px;
+}
