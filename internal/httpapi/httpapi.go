@@ -35,9 +35,11 @@ type Model interface {
 
 // Server wires the store, the model and the web build to HTTP.
 type Server struct {
-	Store   *store.Store
-	Model   Model
-	LANURLs []string
+	Store *store.Store
+	Model Model
+	// LANURLs returns the addresses a tablet can open right now. It is asked
+	// on every health check, because Wi-Fi comes and goes.
+	LANURLs func() []string
 	Web     fs.FS
 }
 
@@ -73,9 +75,9 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 	} else if err != nil {
 		status = "down"
 	}
-	urls := s.LANURLs
-	if urls == nil {
-		urls = []string{}
+	urls := []string{}
+	if s.LANURLs != nil {
+		urls = append(urls, s.LANURLs()...)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"ok":       true,

@@ -48,7 +48,7 @@ func run(addr, dataDir, ollamaURL, model string) error {
 	api := &httpapi.Server{
 		Store:   st,
 		Model:   llm.NewOllama(ollamaURL, model),
-		LANURLs: lan,
+		LANURLs: func() []string { return lanURLs(tcp) },
 		Web:     web.Files(),
 	}
 	srv := &http.Server{

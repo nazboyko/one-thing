@@ -46,7 +46,7 @@ func newServer(t *testing.T, model *fakeModel) http.Handler {
 	s := &Server{
 		Store:   st,
 		Model:   model,
-		LANURLs: []string{"http://192.168.1.20:8787/"},
+		LANURLs: func() []string { return []string{"http://192.168.1.20:8787/"} },
 		Web:     fstest.MapFS{"index.html": {Data: []byte("<!doctype html><title>One Thing</title>")}},
 	}
 	return s.Handler()
@@ -110,6 +110,46 @@ func TestHealth(t *testing.T) {
 				t.Fatalf("health = %+v", got)
 			}
 		})
+	}
+}
+
+func TestHealthFollowsTheNetwork(t *testing.T) {
+	st, err := store.New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	wifi := true
+	s := &Server{Store: st, Model: &fakeModel{}, Web: fstest.MapFS{}, LANURLs: func() []string {
+		if wifi {
+			return []string{"http://192.168.1.20:8787/"}
+		}
+		return nil
+	}}
+	h := s.Handler()
+	lan := func() string {
+		rec := do(t, h, "GET", "/api/health", "")
+		var raw map[string]json.RawMessage
+		if err := json.Unmarshal(rec.Body.Bytes(), &raw); err != nil {
+			t.Fatal(err)
+		}
+		return string(raw["lan_urls"])
+	}
+
+	if got := lan(); got != `["http://192.168.1.20:8787/"]` {
+		t.Fatalf("with Wi-Fi: lan_urls = %s", got)
+	}
+	wifi = false
+	if got := lan(); got != `[]` {
+		t.Fatalf("Wi-Fi off: lan_urls = %s, want an empty list", got)
+	}
+	wifi = true
+	if got := lan(); got != `["http://192.168.1.20:8787/"]` {
+		t.Fatalf("Wi-Fi back: lan_urls = %s", got)
+	}
+
+	s.LANURLs = nil
+	if got := lan(); got != `[]` {
+		t.Fatalf("no LAN function: lan_urls = %s, want an empty list", got)
 	}
 }
 
