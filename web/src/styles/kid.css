@@ -369,10 +369,25 @@ body[data-screen="kid"] {
 
 .kid__liftoff {
   display: inline-block;
+  margin-bottom: 12px;
   font-size: min(34vmin, 220px);
   line-height: 1;
   transform: rotate(-45deg);
   animation: liftoff 1600ms cubic-bezier(0.3, 0, 0.2, 1) both;
+}
+
+/* the words arrive after the rocket has risen, so it never crosses them */
+.kid__finale-body > :not(.kid__liftoff) {
+  animation: arrive 400ms ease-out 1300ms both;
+}
+
+@keyframes arrive {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes liftoff {
